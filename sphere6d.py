@@ -345,25 +345,22 @@ class sphere6d:
 
         return init_dict
 
-    def _chi2(self, X, data):
+    def _chi2(self, X, data_ra, data_dec, data_rv, data_pmra, data_pmdec):
 
-        data_rv = data['VHELIO_AVG']
-        data_pmra = data['GAIA_PMRA']
-        data_pmdec = data['GAIA_PMDEC']
         data_pmtot = np.hypot(data_pmra, data_pmdec)
 
         init_dict = self._pack_init_dict(X)
         self.initialize_model(**init_dict)
 
         model_rv, model_pmra, model_pmdec = self.predict(
-            data['RA'], data['DEC'])
+            data_ra, data_dec)
         model_pmtot = np.hypot(model_pmra, model_pmdec)
 
-        rv_scale = np.nanstd(data['VHELIO_AVG'])
-        pmra_scale = np.nanstd(data['GAIA_PMRA'])
-        pmdec_scale = np.nanstd(data['GAIA_PMDEC'])
+        rv_scale = np.nanstd(data_rv)
+        pmra_scale = np.nanstd(data_pmra)
+        pmdec_scale = np.nanstd(data_pmdec)
         pmtot_scale = np.nanstd(
-            np.hypot(data['GAIA_PMRA'], data['GAIA_PMDEC']))
+            np.hypot(data_pmra, data_pmdec))
 
         # rv_scale = np.median(data['VERR'])
         # pmra_scale = np.median(data['GAIA_PMRA_ERROR'])
@@ -387,95 +384,15 @@ class sphere6d:
         # print(chisquared)
         return chisquared
 
-    def _chi2_old(self, X, data):
-
-        data_rv, xedges, yedges = np.histogram2d(
-            data['RA'], data['DEC'], weights=data['VHELIO_AVG'], bins=100)
-        data_pmra, xedges, yedges = np.histogram2d(
-            data['RA'], data['DEC'], weights=data['GAIA_PMRA'], bins=[xedges, yedges])
-        data_pmdec, xedges, yedges = np.histogram2d(
-            data['RA'], data['DEC'], weights=data['GAIA_PMDEC'], bins=[xedges, yedges])
-        data_pmtot, xedges, yedges = np.histogram2d(data['RA'], data['DEC'], weights=np.hypot(
-            data['GAIA_PMRA'], data['GAIA_PMDEC']), bins=[xedges, yedges])
-
-        data_counts, xedges, yedges = np.histogram2d(
-            data['RA'], data['DEC'], bins=[xedges, yedges])
-
-        data_rv = data_rv / data_counts
-        data_pmra = data_pmra / data_counts
-        data_pmdec = data_pmdec / data_counts
-        data_pmtot = data_pmtot / data_counts
-
-        init_dict = self._pack_init_dict(X)
-        self.initialize_model(**init_dict)
-
-        model_rv, xedges, yedges = np.histogram2d(
-            self.obs_ras, self.obs_decs, weights=self.obs_rvs, bins=[xedges, yedges])
-        model_pmra, xedges, yedges = np.histogram2d(
-            self.obs_ras, self.obs_decs, weights=self.obs_pmras, bins=[xedges, yedges])
-        model_pmdec, xedges, yedges = np.histogram2d(
-            self.obs_ras, self.obs_decs, weights=self.obs_pmdecs, bins=[xedges, yedges])
-        model_pmtot, xedges, yedges = np.histogram2d(self.obs_ras, self.obs_decs, weights=np.hypot(
-            self.obs_pmras, self.obs_pmdecs), bins=[xedges, yedges])
-
-        model_counts, xedges, yedges = np.histogram2d(
-            self.obs_ras, self.obs_decs, bins=[xedges, yedges])
-
-        model_rv = model_rv / model_counts
-        model_pmra = model_pmra / model_counts
-        model_pmdec = model_pmdec / model_counts
-        model_pmtot = model_pmtot / model_counts
-
-        data_rv_m = data_rv
-        data_pmra_m = data_pmra
-        data_pmdec_m = data_pmdec
-        data_pmtot_m = data_pmtot
-        model_rv_m = model_rv
-        model_pmra_m = model_pmra
-        model_pmdec_m = model_pmdec
-        model_pmtot_m = model_pmtot
-
-        data_rv_m[data_counts < 1] = np.nan
-        data_pmra_m[data_counts < 1] = np.nan
-        data_pmdec_m[data_counts < 1] = np.nan
-        data_pmtot_m[data_counts < 1] = np.nan
-        model_rv_m[data_counts < 1] = np.nan
-        model_pmra_m[data_counts < 1] = np.nan
-        model_pmdec_m[data_counts < 1] = np.nan
-        model_pmtot_m[data_counts < 1] = np.nan
-
-        rv_scale = np.nanstd(data['VHELIO_AVG'])
-        pmra_scale = np.nanstd(data['GAIA_PMRA'])
-        pmdec_scale = np.nanstd(data['GAIA_PMDEC'])
-        pmtot_scale = np.nanstd(
-            np.hypot(data['GAIA_PMRA'], data['GAIA_PMDEC']))
-
-        rv_component = (data_rv_m - model_rv_m)**2. / rv_scale**2.
-        pmra_component = (data_pmra_m - model_pmra_m)**2. / pmra_scale**2.
-        pmdec_component = (data_pmdec_m - model_pmdec_m)**2. / pmdec_scale**2.
-        pmtot_component = (data_pmtot_m - model_pmtot_m)**2. / pmtot_scale**2.
-
-        chisquared = np.nansum(
-            rv_component + pmra_component + pmdec_component + pmtot_component)
-
-        # print(chisquared)
-        return chisquared
-
-    def _log_likelihood(self, X, data):
-
-        data_rv = data['VHELIO_AVG']
-        data_pmra = data['GAIA_PMRA']
-        data_pmdec = data['GAIA_PMDEC']
-
-        data_rv_err = data['VERR']
-        data_pmra_err = data['GAIA_PMRA_ERROR']
-        data_pmdec_err = data['GAIA_PMDEC_ERROR']
+    def _log_likelihood(self, X, data_ra=None, data_dec=None, data_rv=None,
+                        data_pmra=None, data_pmdec=None, data_rv_err=None,
+                        data_pmra_err=None, data_pmdec_err=None):
 
         init_dict = self._pack_init_dict_fix_ramp(X)
         self.initialize_model(**init_dict)
 
         model_rv, model_pmra, model_pmdec = self.predict(
-            data['RA'], data['DEC'])
+            data_ra, data_dec)
 
         sigma2_rv = data_rv_err ** 2. + self.vel_disp ** 2.
         sigma2_pmra = data_pmra_err ** 2. + \
@@ -483,7 +400,6 @@ class sphere6d:
         sigma2_pmdec = data_pmdec_err ** 2 + \
             (self.vel_disp / (4.74 * self.obs_dist) * 1000.) ** 2.
 
-        # chisquared = np.nansum(rv_component+pmra_component+pmdec_component+pmtot_component)
         log_likelihood = -0.5 * (np.nansum((data_rv - model_rv) ** 2 / sigma2_rv +
                                            np.log(sigma2_rv)) + np.nansum((
                                                data_pmra - model_pmra) ** 2 /
@@ -561,15 +477,28 @@ class sphere6d:
 
         return output_arr
 
-    def fit(self, data):
+    def check_data(self, a, entry):
 
+        if a is None:
+            raise ValueError(
+                'Please enter an array for {} to fit the data.'.format(entry))
+        pass
+
+    def fit(self, data_ra=None, data_dec=None, data_rv=None,
+            data_pmra=None, data_pmdec=None):
+
+        self.check_data(data_ra, 'data_ra')
+        self.check_data(data_dec, 'data_dec')
+        self.check_data(data_rv, 'data_rv')
+        self.check_data(data_pmra, 'data_pmra')
+        self.check_data(data_pmdec, 'data_pmdec')
         X = [self.obs_pmra_sys, self.obs_pmdec_sys, self.obs_rv_sys,
              np.tan(self.omega / 4.), np.tan(self.inclination / 2.),
              np.log10(self.vmax), np.log10(self.ramp)]
         # X = [np.tan(self.omega/2.),np.tan(self.inclination/2.),np.log10(self.vmax),
         #     np.log10(self.ramp),np.log10(self.vel_disp)]
-        self.data = data
-        optimize.minimize(self._chi2, X, args=(data), method='Powell')
+        optimize.minimize(self._chi2, X, args=(
+            data_ra, data_dec, data_rv, data_pmra, data_pmdec), method='Powell')
 
     def predict(self, ra_arr, dec_arr):
 
