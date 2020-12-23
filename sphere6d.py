@@ -474,7 +474,7 @@ class sphere6d:
         pass
 
     def fit(self, data_ra=None, data_dec=None, data_rv=None,
-            data_pmra=None, data_pmdec=None):
+            data_pmra=None, data_pmdec=None, **kwargs):
 
         self.check_data(data_ra, 'data_ra')
         self.check_data(data_dec, 'data_dec')
@@ -487,7 +487,8 @@ class sphere6d:
         # X = [np.tan(self.omega/2.),np.tan(self.inclination/2.),np.log10(self.vmax),
         #     np.log10(self.ramp),np.log10(self.vel_disp)]
         optimize.minimize(self._chi2, X, args=(
-            data_ra, data_dec, data_rv, data_pmra, data_pmdec), method='Powell')
+            data_ra, data_dec, data_rv, data_pmra, data_pmdec),
+            method='Powell', options=kwargs)
 
     def predict(self, ra_arr, dec_arr):
 
