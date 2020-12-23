@@ -18,49 +18,17 @@ jupyter:
 ```
 
 ```{python}
-import sys
-import os.path
 from math import *
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import optimize
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib import rcParams
-from matplotlib import rc
-from matplotlib import colors
-import matplotlib.patches as patch
-from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from astropy.io import fits
 import matplotlib.colorbar as colorbar
-import colormaps as cmaps
-from uvw_calc import gal_coords
-from scipy.optimize import curve_fit,minimize
-from scipy.stats import mode
-import scipy.stats as stats
-from scipy.spatial import distance
-from scipy import interpolate
-from pathlib import Path
-from scipy import integrate
-from uvw_calc import *
 from sphere6d import sphere6d
+from plummer_sampler import plummer_model
 ```
 
 ```{python}
-class plummer_profile(stats.rv_continuous):
-    def _pdf(self,x,s):
-        return (3./(2.*s)) * (1+(x/s)**2.)**(-5./2.)  # Normalized over its range, in this case [0,inf]
-
-def initiate_plummer_model(s,nstars):
-    plummer_model = plummer_profile(a=0, name='plummer_rad')
-    plummer_rad = plummer_model.rvs(s=s,size=nstars, random_state = 72)
-    plummer_phi = stats.uniform.rvs(size=nstars, random_state = 53042) * 2. * np.pi
-    plummer_theta = (stats.uniform.rvs(size=nstars, random_state = 32018503) * np.pi) - np.pi / 2.
-    return plummer_rad, plummer_phi, plummer_theta
-```
-
-```{python}
-plummer_rad, plummer_phi, plummer_theta = initiate_plummer_model(np.radians(4.5/60.)*5000.,1000)
+plummer_mod = plummer_model(np.radians(4.5/60.)*5000., 10000)
 ```
 
 ```{python}
@@ -77,10 +45,10 @@ cluster_hl_rad = np.radians(4.5 / 60.) * cluster_dist
 pmra_sys = 10.
 pmdec_sys = -10.
 rv_sys = 100
-vmax = 10.
-ramp = 10.
-inclination = np.radians(10.)
-omega = np.radians(30.)
+vmax = 13.
+ramp = 8.
+inclination = np.radians(61.)
+omega = np.radians(35.)
 vsigma = 10.
 ```
 
@@ -89,7 +57,7 @@ fixed_param = ['rot_curve', 'density_dist',
                'shape_func', 'rmax', 'ra', 'dec', 'dist']
 fit_param = ['vel_disp', 'vmax', 'ramp', 'pmra_sys', 'pmdec_sys', 'rv_sys',
              'inclination', 'omega']
-fixed_values = ['mackey2013', ['plummer', plummer_rad, plummer_phi, plummer_theta], 
+fixed_values = ['mackey2013', ['plummer_precomp', plummer_mod.rad, plummer_mod.phi, plummer_mod.theta], 
                 'ellipsoidal', cluster_tidal_rad, cluster_ra, cluster_dec, cluster_dist]
 # fixed_values = ['mackey2013', ['linear'], 'ellipsoidal', ocen_tidal_rad,
 #                 ocen_ra, ocen_dec, ocen_dist]
@@ -122,24 +90,29 @@ def plot_model(cluster,model,motion):
         vmax = 15.
         systemic = model.obs_rv_sys
         indiv = cluster.obs_rvs
+        label = 'RV'
 
     if motion == 'pmra':
         
         H2, xedges, yedges = np.histogram2d(model.obs_ras,model.obs_decs,
-                                            weights = model.obs_rvs-model.obs_rv_sys, bins=75)
+                                            weights = model.obs_pmras-model.obs_pmra_sys, bins=75)
         vmin = -1.
         vmax = 1.
         systemic = model.obs_pmra_sys
         indiv = cluster.obs_pmras
+        label = 'PM RA'
+
+
 
     if motion == 'pmdec':
         
         H2, xedges, yedges = np.histogram2d(model.obs_ras,model.obs_decs,
-                                            weights = model.obs_rvs-model.obs_rv_sys, bins=75)
+                                            weights = model.obs_pmdecs-model.obs_pmdec_sys, bins=75)
         vmin = -1.
         vmax = 1.
         systemic = model.obs_pmdec_sys
         indiv = cluster.obs_pmdecs
+        label = 'PM Dec'
 
 
     Hcounts2, xedges, yedges = np.histogram2d(model.obs_ras,model.obs_decs,
@@ -160,20 +133,22 @@ def plot_model(cluster,model,motion):
 
     ax.tick_params(axis='both',direction='in',labelsize=15)
 
-    # ax.set_xlim([200.5,203])
-    # ax.set_ylim([-48.2,-46.8])
+    ax.set_xlim([200.5,203])
+    ax.set_ylim([-48.2,-46.8])
 
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     cbar=fig.colorbar(cset1,cax=cax)
     cbar.ax.tick_params(labelsize=13)
-    cbar.set_label(r'$\mathtt{Num}$',fontsize=18)
+    cbar.set_label(label,fontsize=18)
+    ax.set_xlabel('RA',fontsize=18)
+    ax.set_ylabel('Dec',fontsize=18)
 
     ax.invert_xaxis()
 
     plt.show()
-    print(model.obs_pmra_sys,model.obs_pmdec_sys,model.obs_rv_sys,model.inclination,
-         model.omega,model.vel_disp,model.vmax,model.ramp)
+    print(model.obs_pmra_sys,model.obs_pmdec_sys,model.obs_rv_sys,np.degrees(model.inclination),
+         np.degrees(model.omega),model.vel_disp,model.vmax,model.ramp)
 ```
 
 ```{python}
@@ -213,7 +188,7 @@ cluster.obs_pmdecs+=np.random.randn(len(cluster.obs_pmdecs))*vsigma/(4.74*cluste
 ```
 
 ```{python}
-data_keys = ['RA','DEC','VHELIO_AVG','GAIA_PMRA','GAIA_PMDEC']
+data_keys = ['data_ra','data_dec','data_rv','data_pmra','data_pmdec']
 data_values = [cluster.obs_ras,cluster.obs_decs,cluster.obs_rvs,cluster.obs_pmras,cluster.obs_pmdecs]
 data = {data_keys[i]: data_values[i] for i in range(len(data_keys))}
 ```
@@ -232,8 +207,8 @@ cluster_hl_rad = np.radians(4.5 / 60.) * cluster_dist
 pmra_sys = 0.
 pmdec_sys = 0.
 rv_sys = 100
-vmax = 5.
-ramp = 5.
+vmax = 10.
+ramp = 10.
 inclination = np.radians(0.)
 omega = np.radians(0.)
 vsigma = 10.
@@ -254,29 +229,25 @@ init_dict = {dict_keys[i]: dict_values[i] for i in range(len(dict_keys))}
 
 cluster_model = sphere6d(init_dict)
 
-cluster_model.fit(data)
-```
-
-```{python}
-# model_rv, model_pmra, model_pmdec = cluster_model.predict(data['RA'],
-#                                                           data['DEC'])
-# new_vsigma = np.nanstd(data['VHELIO_AVG'] - model_rv)
-# cluster_model.vel_disp = new_vsigma
-
-# X = [cluster_model.obs_pmra_sys, cluster_model.obs_pmdec_sys,
-#      cluster_model.obs_rv_sys, np.tan(cluster_model.omega / 4.),
-#      np.tan(cluster_model.inclination / 2.), np.log10(cluster_model.vmax)]
-
-# chi2_fit_dict = cluster_model._pack_init_dict_fix_ramp(X)
-# cluster_model = sphere6d(chi2_fit_dict)
-
-# X = [cluster_model.obs_pmra_sys, cluster_model.obs_pmdec_sys,
-#      cluster_model.obs_rv_sys, np.tan(cluster_model.omega / 4.),
-#      np.tan(cluster_model.inclination / 2.), np.log10(cluster_model.vmax)]
+cluster_model.fit(**data, xtol=0.1, ftol=0.01)
 ```
 
 ```{python}
 plot_model(cluster,cluster_model,'rv')
+```
+
+```{python}
+cluster_inputs = [cluster.obs_pmra_sys,cluster.obs_pmdec_sys,cluster.obs_rv_sys,np.degrees(cluster.inclination), 
+                  np.degrees(cluster.omega),cluster.vmax,cluster.ramp]
+
+model_outputs = [cluster_model.obs_pmra_sys,cluster_model.obs_pmdec_sys,cluster_model.obs_rv_sys,
+                 np.degrees(cluster_model.inclination), np.degrees(cluster_model.omega),
+                 cluster_model.vmax,cluster_model.ramp]
+
+labels = ['Systemic PM RA', 'Systemic PM Dec', 'Systemic RV', 'Inclination', 'Omega', 'Vmax', 'R amp']
+
+for label, truth, fit in zip(labels,cluster_inputs,model_outputs):
+    print('{}: Input = {:4.1f} / Fit = {:4.1f}'.format(label,truth,fit))
 ```
 
 ```{python}
