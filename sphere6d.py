@@ -1,32 +1,9 @@
-import sys
-import os.path
 from math import *
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy import optimize
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib import rcParams
-from matplotlib import rc
-from matplotlib import colors
-import matplotlib.patches as patch
-from matplotlib.collections import PatchCollection
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from astropy.io import fits
-import matplotlib.colorbar as colorbar
-import colormaps as cmaps
-from uvw_calc import gal_coords
-from scipy.optimize import curve_fit, minimize
 import scipy.stats as stats
-from scipy.spatial import distance
 from scipy import interpolate
-from pathlib import Path
-from scipy import integrate
-from sklearn import svm
-import itertools
-from scipy import linalg
-import matplotlib as mpl
-from sklearn import mixture
-from astroML import density_estimation
+from plummer_sampler import plummer_model
 
 
 class sphere6d:
@@ -69,13 +46,25 @@ class sphere6d:
             self.phis = phis.flatten()
             self.thetas = thetas.flatten()
 
-        elif density_dist[0] == 'plummer':
+        elif density_dist[0] == 'plummer_precomp':
             # density_dist should be a list of input parameters of
             # ['type',*param]
-            # for king *param should be a
+            # for precomputed plummer profile *param should be radii
+            # phi angles and theta angles
             self.rsphs = density_dist[1]
             self.phis = density_dist[2]
             self.thetas = density_dist[3]
+
+        elif density_dist[0] == 'plummer_rand':
+            # density_dist should be a list of input parameters of
+            # ['type',*param]
+            # for random plummer profile sampling *param should be half
+            # light radius and the number of points to sample the velocity
+            # distribution
+            plummer = plummer_model(density_dist[1], density_dist[2])
+            self.rsphs = plummer.rad
+            self.phis = plummer.phi
+            self.thetas = plummer.theta
 
         if shape[0] == 'spherical':
             self.cyl_calc()
