@@ -377,7 +377,7 @@ class sphere6d:
                         data_pmra=None, data_pmdec=None, data_rv_err=None,
                         data_pmra_err=None, data_pmdec_err=None):
 
-        init_dict = self._pack_init_dict_fix_ramp(X)
+        init_dict = self._pack_init_dict(X)
         self.initialize_model(**init_dict)
 
         model_rv, model_pmra, model_pmdec = self.predict(
@@ -401,12 +401,12 @@ class sphere6d:
         return log_likelihood
 
     def log_prior(self, X):
-        pmra_sys, pmdec_sys, rv_sys, tan_omega_o4, tan_inc_o2, logvmax = X
+        pmra_sys, pmdec_sys, rv_sys, tan_omega_o4, tan_inc_o2, logvmax, logramp = X
         if self.low_prior is None or self.high_prior is None:
             # self.low_prior = [-100.,-3.,-1.,0.,-1.]
             # self.high_prior = [100.,3.,2.,2.,2.]
-            self.low_prior = [-1000., -1000., -1000., -100., -3., -1.]
-            self.high_prior = [1000., 1000., 1000., 100., 3., 2.]
+            self.low_prior = [-1000., -1000., -1000., -100., -3., -1., -1]
+            self.high_prior = [1000., 1000., 1000., 100., 3., 2., 2]
         if np.all(np.logical_and(X < self.high_prior, X > self.low_prior)):
             return 0.0
         return -np.inf
