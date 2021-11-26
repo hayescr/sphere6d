@@ -36,8 +36,8 @@ class sphere6d:
             self.rmax = self.ramp
 
         if density_dist[0] == 'linear':
-            rsphs_grid = np.linspace(0., self.rmax, 50., endpoint=True)
-            phis_grid = np.linspace(0., 2 * np.pi, 180., endpoint=False)
+            rsphs_grid = np.linspace(0., self.rmax, 50, endpoint=True)
+            phis_grid = np.linspace(0., 2 * np.pi, 180, endpoint=False)
             thetas_grid = np.linspace(-np.pi / 2.,
                                       np.pi / 2., 90., endpoint=True)
             rsphs, phis, thetas = np.meshgrid(
@@ -80,12 +80,6 @@ class sphere6d:
 
     def star_model(self):
         pass
-
-    def plummer_density(self, s, nstars):
-        rsphs = plummer_profile.rvs(s, a=0., size=nstars)
-        phis = stats.uniform.rvs(size=nstars) * 2. * np.pi
-        thetas = stats.uniform.rvs(size=nstars) * np.pi / 2.
-        return rsphs, phis, thetas
 
     def calc_solidbody(self):
         self.vzs = np.zeros(self.rs.shape)
@@ -133,7 +127,8 @@ class sphere6d:
 
     def projection(self, inclination, omega):
 
-        # x is pointing toward us positive inclination tips it towards us and omega rotates counterclockwise
+        # x is pointing toward us positive inclination tips it towards us and
+        # omega rotates counterclockwise
         # on the sky
         ys_prime = self.ys
         xs_prime = self.xs * np.cos(inclination) + \
@@ -227,16 +222,16 @@ class sphere6d:
 
         kms_to_pcpy = 1.022 * 10**(-6.)
 
-        self.obs_rvs = rv_sys + (xsun * vxsun + ysun * vysun +
-                                 zsun * vzsun) / np.sqrt(xsun**2. + ysun**2. + zsun**2.)
-        self.obs_pmras = pmra_sys - (np.degrees(kms_to_pcpy * (vxsun * ysun -
-                                                               xsun * vysun) / np.hypot(
-            xsun, ysun)**2.) * 3600. * 1000. *
-            np.cos(np.radians(self.obs_decs)))
+        self.obs_rvs = rv_sys + (xsun * vxsun + ysun * vysun
+                                 + zsun * vzsun) / np.sqrt(xsun**2. + ysun**2. + zsun**2.)
+        self.obs_pmras = pmra_sys - (np.degrees(kms_to_pcpy * (vxsun * ysun
+                                                               - xsun * vysun) / np.hypot(
+            xsun, ysun)**2.) * 3600. * 1000.
+            * np.cos(np.radians(self.obs_decs)))
         self.obs_pmdecs = pmdec_sys - (np.degrees(kms_to_pcpy * (
-            zsun * (xsun * vxsun - ysun * vysun) - np.hypot(xsun, ysun)**2. *
-            vzsun) / (np.hypot(xsun, ysun) * (xsun**2. + ysun**2. +
-                                              zsun**2.))) * 3600. * 1000.)
+            zsun * (xsun * vxsun - ysun * vysun) - np.hypot(xsun, ysun)**2.
+            * vzsun) / (np.hypot(xsun, ysun) * (xsun**2. + ysun**2. +
+                                                zsun**2.))) * 3600. * 1000.)
 
         # old proper motions
         # Negative for sky-right
@@ -391,11 +386,11 @@ class sphere6d:
 
         log_likelihood = -0.5 * (np.nansum((data_rv - model_rv) ** 2 / sigma2_rv +
                                            np.log(sigma2_rv)) + np.nansum((
-                                               data_pmra - model_pmra) ** 2 /
-            sigma2_pmra + np.log(sigma2_pmra)) +
-            np.nansum((data_pmdec -
-                       model_pmdec) ** 2 / sigma2_pmdec +
-                      np.log(sigma2_pmdec)))
+                                               data_pmra - model_pmra) ** 2
+            / sigma2_pmra + np.log(sigma2_pmra))
+            + np.nansum((data_pmdec -
+                         model_pmdec) ** 2 / sigma2_pmdec +
+                        np.log(sigma2_pmdec)))
 
         # print(log_likelihood)
         return log_likelihood
@@ -415,13 +410,13 @@ class sphere6d:
         lp = self.log_prior(X)
         if not np.isfinite(lp):
             return -np.inf
-        return lp + self._log_likelihood(X, data)
+        return lp + self._log_likelihood(X, **data)
 
     def _gcd(self, ra, dec):
-        return np.arccos(np.sin(np.radians(self.obs_decs)) *
-                         np.sin(np.radians(dec)) + np.cos(np.radians(self.obs_decs)) *
-                         np.cos(np.radians(dec)) * np.cos(np.radians(self.obs_ras) -
-                                                          np.radians(ra)))
+        return np.arccos(np.sin(np.radians(self.obs_decs))
+                         * np.sin(np.radians(dec)) + np.cos(np.radians(self.obs_decs))
+                         * np.cos(np.radians(dec)) * np.cos(np.radians(self.obs_ras) -
+                                                            np.radians(ra)))
 
     def _kin_obs_bin(self, bins=50):
 
