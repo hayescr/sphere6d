@@ -329,6 +329,48 @@ class sphere6d:
 
         return init_dict
 
+    def _pack_init_dict_fit_rv(self, X):
+        fixed_param = ['rot_curve', 'density_dist',
+                       'shape_func', 'rmax', 'ra', 'dec', 'dist', 'vel_disp',
+                       'pmra_sys', 'pmdec_sys', 'rv_sys', 'inclination',
+                       'omega']
+        fit_param = ['vmax', 'ramp']
+        fixed_values = [self.rot_curve, self.density_dist, self.shape_func,
+                        self.rmax, self.obs_ra_cen, self.obs_dec_cen,
+                        self.obs_dist, self.vel_disp, self.obs_pmra_sys,
+                        self.obs_pmdec_sys, self.obs_rv_sys, self.inclination,
+                        self.omega]
+        # fixed_values = [self.rot_curve, self.density_dist, self.shape_func, self.rmax, self.obs_ra_cen,
+        #               self.obs_dec_cen, self.obs_dist, self.obs_pmra_sys, self.obs_pmdec_sys, self.obs_rv_sys]
+
+        logvmax, logramp = X
+        # tan_omega_o2,tan_inc_o2,logvmax,logramp,logvsigma = X
+
+        # fix angle
+        # tan_inc_o2 = np.tan(np.radians(54.)/2.)
+        # tan_omega_o2 = np.tan(np.radians(-152.)/2.)
+
+        # fixed ramp
+        # logramp = 0.945
+
+        # fixed vsigma
+        # logvsigma = 1.
+
+        # inclination = 2. * np.arctan(tan_inc_o2)
+        # omega = 4. * np.arctan(tan_omega_o4)
+        vmax = 10.**logvmax
+        ramp = 10.**logramp
+
+        fit_values = [vmax, ramp]
+
+        dict_keys = fixed_param + fit_param
+        dict_values = fixed_values + fit_values
+
+        init_dict = {dict_keys[i]: dict_values[i]
+                     for i in range(len(dict_keys))}
+
+        return init_dict
+
     def _chi2(self, X, data_ra, data_dec, data_rv, data_pmra, data_pmdec):
 
         data_pmtot = np.hypot(data_pmra, data_pmdec)
@@ -411,6 +453,50 @@ class sphere6d:
         if not np.isfinite(lp):
             return -np.inf
         return lp + self._log_likelihood(X, **data)
+
+    def _log_likelihood_fit_rv(self, X, data_ra=None, data_dec=None, data_rv=None,
+                               data_pmra=None, data_pmdec=None, data_rv_err=None,
+                               data_pmra_err=None, data_pmdec_err=None):
+
+        init_dict = self._pack_init_dict_fit_rv(X)
+        self.initialize_model(**init_dict)
+
+        model_rv, model_pmra, model_pmdec = self.predict(
+            data_ra, data_dec)
+
+        sigma2_rv = data_rv_err ** 2. + self.vel_disp ** 2.
+        sigma2_pmra = data_pmra_err ** 2. + \
+            (self.vel_disp / (4.74 * self.obs_dist) * 1000.) ** 2.
+        sigma2_pmdec = data_pmdec_err ** 2 + \
+            (self.vel_disp / (4.74 * self.obs_dist) * 1000.) ** 2.
+
+        log_likelihood = -0.5 * (np.nansum((data_rv - model_rv) ** 2 / sigma2_rv +
+                                           np.log(sigma2_rv)) + np.nansum((
+                                               data_pmra - model_pmra) ** 2
+            / sigma2_pmra + np.log(sigma2_pmra))
+            + np.nansum((data_pmdec -
+                         model_pmdec) ** 2 / sigma2_pmdec +
+                        np.log(sigma2_pmdec)))
+
+        # print(log_likelihood)
+        return log_likelihood
+
+    def log_prior_fit_rv(self, X):
+        logvmax, logramp = X
+        if self.low_prior is None or self.high_prior is None:
+            # self.low_prior = [-100.,-3.,-1.,0.,-1.]
+            # self.high_prior = [100.,3.,2.,2.,2.]
+            self.low_prior = [-1., -1]
+            self.high_prior = [2., 2]
+        if np.all(np.logical_and(X < self.high_prior, X > self.low_prior)):
+            return 0.0
+        return -np.inf
+
+    def log_probability_fit_rv(self, X, data):
+        lp = self.log_prior_fit_rv(X)
+        if not np.isfinite(lp):
+            return -np.inf
+        return lp + self._log_likelihood_fit_vr(X, **data)
 
     def _gcd(self, ra, dec):
         return np.arccos(np.sin(np.radians(self.obs_decs))
