@@ -496,7 +496,7 @@ class sphere6d:
         lp = self.log_prior_fit_rv(X)
         if not np.isfinite(lp):
             return -np.inf
-        return lp + self._log_likelihood_fit_vr(X, **data)
+        return lp + self._log_likelihood_fit_rv(X, **data)
 
     def _gcd(self, ra, dec):
         return np.arccos(np.sin(np.radians(self.obs_decs))
