@@ -451,6 +451,45 @@ class sphere6d:
         # print(chisquared)
         return chisquared
 
+    def _chi2_fit_vel(self, X, data_ra, data_dec, data_rv, data_pmra, data_pmdec):
+
+        data_pmtot = np.hypot(data_pmra, data_pmdec)
+
+        init_dict = self._pack_init_dict_fit_vel(X)
+        self.initialize_model(**init_dict)
+
+        model_rv, model_pmra, model_pmdec = self.predict(
+            data_ra, data_dec)
+        model_pmtot = np.hypot(model_pmra, model_pmdec)
+
+        rv_scale = np.nanstd(data_rv)
+        pmra_scale = np.nanstd(data_pmra)
+        pmdec_scale = np.nanstd(data_pmdec)
+        pmtot_scale = np.nanstd(
+            np.hypot(data_pmra, data_pmdec))
+
+        # rv_scale = np.median(data['VERR'])
+        # pmra_scale = np.median(data['GAIA_PMRA_ERROR'])
+        # pmdec_scale = np.median(data['GAIA_PMDEC_ERROR'])
+        # pmtot_scale = np.nanstd(np.hypot(data['GAIA_PMRA'],data['GAIA_PMDEC']))
+
+        # print(rv_scale,pmra_scale,pmdec_scale)
+
+        rv_component = (data_rv - model_rv)**2. / rv_scale**2.
+        pmra_component = (data_pmra - model_pmra)**2. / pmra_scale**2.
+        pmdec_component = (data_pmdec - model_pmdec)**2. / pmdec_scale**2.
+        pmtot_component = (data_pmtot - model_pmtot)**2. / pmtot_scale**2.
+
+        # print(rv_component,pmra_component,pmdec_component)
+
+        # chisquared = np.nansum(rv_component+pmra_component+pmdec_component+pmtot_component)
+        chisquared = np.nansum(rv_component + pmra_component + pmdec_component)
+
+        # print(self.obs_pmra_sys, self.obs_pmdec_sys, self.obs_rv_sys,
+        #      self.inclination, self.omega, self.vmax, self.ramp, self.vel_disp)
+        # print(chisquared)
+        return chisquared
+
     def _log_likelihood(self, X, data_ra=None, data_dec=None, data_rv=None,
                         data_pmra=None, data_pmdec=None, data_rv_err=None,
                         data_pmra_err=None, data_pmdec_err=None):
@@ -653,6 +692,21 @@ class sphere6d:
         # X = [np.tan(self.omega/2.),np.tan(self.inclination/2.),np.log10(self.vmax),
         #     np.log10(self.ramp),np.log10(self.vel_disp)]
         optimize.minimize(self._chi2, X, args=(
+            data_ra, data_dec, data_rv, data_pmra, data_pmdec),
+            method='Powell', options=kwargs)
+
+    def fit_vel(self, data_ra=None, data_dec=None, data_rv=None,
+                data_pmra=None, data_pmdec=None, **kwargs):
+
+        self.check_data(data_ra, 'data_ra')
+        self.check_data(data_dec, 'data_dec')
+        self.check_data(data_rv, 'data_rv')
+        self.check_data(data_pmra, 'data_pmra')
+        self.check_data(data_pmdec, 'data_pmdec')
+        X = np.log10(self.vmax)
+        # X = [np.tan(self.omega/2.),np.tan(self.inclination/2.),np.log10(self.vmax),
+        #     np.log10(self.ramp),np.log10(self.vel_disp)]
+        optimize.minimize(self._chi2_fit_vel, X, args=(
             data_ra, data_dec, data_rv, data_pmra, data_pmdec),
             method='Powell', options=kwargs)
 
